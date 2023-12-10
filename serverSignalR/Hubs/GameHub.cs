@@ -1,163 +1,153 @@
-using Microsoft.AspNet.SignalR.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Server.Services;
-using System.Threading.Tasks;
+using System.Linq;
+using System;
+using Server.Contexts;
 
 namespace Server.Hubs
 {
     public class GameHub : Hub
     {
-        private readonly GameServices gameServices;
-        public GameHub(GameServices gameServices)
+        private readonly UsrServic usersServic;
+        private readonly GameServic gameServic;
+        public GameHub(UsrServic usersServic, GameServic gameServic)
         {
-            this.gameServices = gameServices;
+            this.usersServic = usersServic;
+            this.gameServic = gameServic;
         }
 
-        public static String[] playerConnectId = { "", "" };
-        public static bool isPlayGame = false;
-        public static int[,] cellsVal;
-        public async Task Test(char character, int x, int y)
+        private async Task UpDataStatus()
         {
-            System.Console.WriteLine("test");
-            System.Console.WriteLine($"{character}, {x}, {y}");
-
-            await Clients.Caller.SendAsync("GetTest", character, x, y);
-        }
-
-
-        private async Task SendStatus()
-        {
-            int countPlayer = gameServices.GetOnlineCount();
+            int countPlayer = usersServic.GetOnlineCount();
             if (countPlayer < 2)
             {
-                await Clients.Caller.SendAsync("GetStatus", 0, ' ');
-                Console.WriteLine($"{DateTime.Now.ToString("dd-MM-yyyy HH-mm")}: id =  {Context.ConnectionId} first player");
+                await Clients.Caller.SendAsync("UpDataStatus", 0, ' ');
             }
             else
             {
-                if (isPlayGame)
+                if (gameServic.isPlayGame())
                 {
-                    Console.WriteLine($"{DateTime.Now.ToString("dd-MM-yyyy HH-mm")}: id =  {Context.ConnectionId} spectate");
-                    await Clients.Caller.SendAsync("GetStatus", 2, ' ');
-                    await Clients.Caller.SendAsync("GetField", "XXXOOOXXX");
+                    await Clients.Caller.SendAsync("UpDataStatus", 2, ' ');
+                    await Clients.Caller.SendAsync("UploadFields", gameServic.filedsIntToString());
                 }
                 else
                 {
-                    foreach (var id in gameServices.GetOnlineUsersId())
+                    foreach (var id in usersServic.GetOnlineUsersId())
                     {
-                        Console.WriteLine($"{DateTime.Now.ToString("dd-MM-yyyy HH-mm")}: id =  {id} waiting");
-                        await Clients.Client(id).SendAsync("GetStatus", 1, ' ');
+                        await Clients.Client(id).SendAsync("UpDataStatus", 1, ' ');
                     }
                 }
 
             }
         }
-
-        private async Task GetResult(bool isAutoWin)
+        private async Task CheckGameResult(bool isAutoWin, String idAutowin = "")
         {
+            String result;
             if (isAutoWin)
             {
-                await Clients.Client(playerConnectId[0]).SendAsync("GetResult", true);
+                await Clients.Client(idAutowin).SendAsync("CheckGameResult", "autoWin");
+                result = "autoWin";
             }
             else
             {
-                int countPointRow, countPointCol, countPointHor = 0, countPointHorRev = 0;
-                bool isWin = false;
-                for (int i = 0; i < 3; i++)
+                result = gameServic.GetResult();
+                if (result == "next")
                 {
-                    countPointRow = 0;
-                    countPointCol = 0;
-                    for (int j = 0; j < 3; j++)
-                    {
-                        countPointRow += cellsVal[i, j];
-                        countPointCol += cellsVal[j, i];
-                    }
-                    countPointHor += cellsVal[i, i];
-                    countPointHorRev += cellsVal[i, 2 - i];
-
-                    if (countPointRow == 3 || countPointCol == 3 || countPointHor == 3 || countPointHorRev == 3)
-                    {
-                        await Clients.Client(playerConnectId[0]).SendAsync("GetResult", true);
-                        await Clients.Client(playerConnectId[1]).SendAsync("GetResult", false);
-                        isWin = true;
-                        break;
-                    }
-                    if (countPointRow == -3 || countPointCol == -3 || countPointHor == -3 || countPointHorRev == -3)
-                    {
-                        await Clients.Client(playerConnectId[0]).SendAsync("GetResult", false);
-                        await Clients.Client(playerConnectId[1]).SendAsync("GetResult", true);
-                        isWin = true;
-                        break;
-                    }
-                }
-                if (!isWin)
                     return;
+                }
+                switch (result)
+                {
+                    case "win_x":
+                        await Clients.Client(gameServic.getPlayerX()).SendAsync("CheckGameResult", "win");
+                        await Clients.Client(gameServic.getPlayerO()).SendAsync("CheckGameResult", "lose"); break;
+                    case "win_o":
+                        await Clients.Client(gameServic.getPlayerX()).SendAsync("CheckGameResult", "lose");
+                        await Clients.Client(gameServic.getPlayerO()).SendAsync("CheckGameResult", "win"); break;
+                    case "draw":
+                        await Clients.Client(gameServic.getPlayerX()).SendAsync("CheckGameResult", "draw");
+                        await Clients.Client(gameServic.getPlayerO()).SendAsync("CheckGameResult", "draw"); break;
+                }
             }
-            playerConnectId[0] = "";
-            playerConnectId[1] = "";
-            isPlayGame = false;
-            await SendStatus();
+            ResulGameList resulGameList = new ResulGameList
+            {
+                playerNameX = usersServic.GetUserByConnectionId(gameServic.getPlayerX()),
+                playerNameO = usersServic.GetUserByConnectionId(gameServic.getPlayerO()),
+                resultGame = result
+            };
+            using (ApplicationContext db = new ApplicationContext())
+            {
+                db.ResulsGameList.Add(resulGameList);
+                db.SaveChanges();
+            }
+            gameServic.setDefolatValue();
+            await UpDataStatus();
+            await ListLastGameResult();
+        }
+        public async Task ListLastGameResult()
+        {
+            using (ApplicationContext db = new ApplicationContext())
+            {
+                String sendStrList = "";
+                var resulsGameList = db.ResulsGameList.ToList();
+                // var resulsGameList = db.ResulsGameList.ma;
+                foreach (ResulGameList r in resulsGameList)
+                {
+                    sendStrList += $"{r.playerNameX} | {r.resultGame} | {r.playerNameO} *";
+                }
+                await Clients.Client(gameServic.getPlayerX()).SendAsync("ListLastGameResult", sendStrList);
+
+            }
         }
         public async Task SendMove(char character, int x, int y)
         {
-            cellsVal[(x == 0 ? x : x / 2), y] = character == 'X' ? 1 : -1;
-            Console.WriteLine($"{DateTime.Now.ToString("dd-MM-yyyy HH-mm")}: id =  {Context.ConnectionId} move");
-            Console.WriteLine("\tcheck: " + Context.ConnectionId);
-            GetResult(false);
+            gameServic.setValueCells((character == 'X' ? 1 : -1), (x == 0 ? x : x / 2), y);
+            CheckGameResult(false);
             await Clients.Others.SendAsync("GetPlayerMove", character, x, y);
         }
-
         public async Task SendRequestForGame()
         {
-            Console.WriteLine($"{DateTime.Now.ToString("dd-MM-yyyy HH-mm")}: id =  {Context.ConnectionId} connect for play");
-
-            if (String.IsNullOrEmpty(playerConnectId[0]))
+            if (String.IsNullOrEmpty(gameServic.getPlayerX()))
             {
-                playerConnectId[0] = Context.ConnectionId;
-                await Clients.Caller.SendAsync("GetStatus", 3, 'X');
+                gameServic.setPlayerX(Context.ConnectionId);
+                await Clients.Caller.SendAsync("UpDataStatus", 3, 'X');
                 return;
             }
-            if (String.IsNullOrEmpty(playerConnectId[1]))
+            if (String.IsNullOrEmpty(gameServic.getPlayerO()))
             {
-                cellsVal = new int[3, 3];
-                for (int i = 0; i < 3; i++)
-                    for (int j = 0; j < 3; j++)
-                        cellsVal[i, j] = 0;
-
-                isPlayGame = true;
-                playerConnectId[1] = Context.ConnectionId;
-                await Clients.Caller.SendAsync("GetStatus", 3, 'O');
-                await Clients.AllExcept(playerConnectId).SendAsync("GetStatus", 2, ' ');
+                gameServic.setIsPlay(true);
+                gameServic.setPlayerO(Context.ConnectionId);
+                await Clients.Caller.SendAsync("UpDataStatus", 3, 'O');
+                foreach (var id in usersServic.GetOnlineUsersId())
+                    if (!gameServic.isIdContains(id))
+                        await Clients.Client(id).SendAsync("UpDataStatus", 2, ' ');
             }
         }
-
         public async Task AddUserToList(String userName)
         {
             Console.WriteLine($"{DateTime.Now.ToString("dd-MM-yyyy HH-mm")}: user from id {Context.ConnectionId} add myself name = {userName}");
-            gameServices.AddUserToList(userName, Context.ConnectionId);
-            await SendStatus();
+            usersServic.AddUserToList(userName, Context.ConnectionId);
+            await UpDataStatus();
         }
         public override async Task OnConnectedAsync()
         {
             Console.WriteLine($"{DateTime.Now.ToString("dd-MM-yyyy HH-mm")}: id the user connected = {Context.ConnectionId}");
-            await Groups.AddToGroupAsync(Context.ConnectionId, "TicTacToe");
+            await Groups.AddToGroupAsync(Context.ConnectionId, "players");
             await Clients.Caller.SendAsync("UserConnected");
         }
-
         public override async Task OnDisconnectedAsync(Exception exception)
         {
             Console.WriteLine($"{DateTime.Now.ToString("dd-MM-yyyy HH-mm")}: id the user disconnected = {Context.ConnectionId}");
-            if (gameServices.GetUserByConnectionId(Context.ConnectionId) != null)
-                gameServices.RemoveUserFromList(gameServices.GetUserByConnectionId(Context.ConnectionId));
-
-            if (playerConnectId.Contains(Context.ConnectionId))
+            if (usersServic.GetUserByConnectionId(Context.ConnectionId) != null)
             {
-                playerConnectId[0] = playerConnectId[0] == Context.ConnectionId ? playerConnectId[1] : playerConnectId[0];
-                playerConnectId[1] = "";
-                GetResult(true);
+                usersServic.RemoveUserFromList(usersServic.GetUserByConnectionId(Context.ConnectionId));
+                if (gameServic.isIdContains(Context.ConnectionId))
+                {
+                    await CheckGameResult(true, (gameServic.getPlayerX() == Context.ConnectionId ?
+                                            gameServic.getPlayerO() : gameServic.getPlayerX())
+                                    );
+                }
             }
-
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, "TicTacToe");
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, "players");
             await base.OnDisconnectedAsync(exception);
         }
     }

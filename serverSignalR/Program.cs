@@ -8,7 +8,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSingleton<GameServices>();
+builder.Services.AddSingleton<GameServic>();
+builder.Services.AddSingleton<UsrServic>();
 builder.Services.AddSignalR();
 
 var app = builder.Build();
@@ -19,6 +20,5 @@ app.UseAuthentication();
 app.MapControllers();
 app.MapHub<GameHub>("/game");
 
-Console.Clear();
+// Console.Clear();
 app.Run();
-Console.Clear();

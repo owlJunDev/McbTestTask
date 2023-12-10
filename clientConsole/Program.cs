@@ -19,12 +19,24 @@ namespace ClientConsole
                                                     "press key R for connect game",
                                                     "you spectate                ",
                                                     "play                        "};
-        static void drowField()
+        static void drawField()
         {
             Console.Clear();
             Console.WriteLine("_|_|_\t\tpress Esc from leave");
             Console.WriteLine("_|_|_");
             Console.WriteLine(" | | ");
+        }
+        static async Task ListLastGameResult()
+        {
+            connection.On<String>("ListLastGameResult", (filed) =>
+                {
+                    int i = 0;
+                    foreach (var str in filed.Split('*'))
+                    {
+                        Console.SetCursorPosition(10, 1 + i++);
+                        System.Console.Write(str);
+                    }
+                });
         }
         static void Init()
         {
@@ -35,12 +47,22 @@ namespace ClientConsole
             for (int i = 0; i < 3; i++)
                 for (int j = 0; j < 3; j++)
                     isEmptyCells[i, j] = true;
-            drowField();
+            drawField();
         }
-
-        static async Task GetStatus()
+        static async Task UploadFields()
         {
-            connection.On<int, Char>("GetStatus", (status, character) =>
+            connection.On<String>("UploadFields", (filed) =>
+                {
+                    Console.SetCursorPosition(0, 0);
+                    foreach (var str in filed.Split('*'))
+                    {
+                        System.Console.WriteLine(str);
+                    }
+                });
+        }
+        static async Task UpDataStatus()
+        {
+            connection.On<int, Char>("UpDataStatus", (status, character) =>
                 {
                     gameStatus = status;
                     s = character;
@@ -77,17 +99,12 @@ namespace ClientConsole
 
                 });
         }
-
-        static async Task GetResult()
+        static async Task CheckGameResult()
         {
-            connection.On<bool>("GetResult", (isWin) =>
+            connection.On<String>("CheckGameResult", (result) =>
                 {
                     Console.SetCursorPosition(0, 5);
-
-                    if (isWin)
-                        Console.WriteLine("Win!");
-                    else
-                        Console.WriteLine("Lose");
+                    Console.WriteLine(result);
                     isSendMove = false;
                 });
         }
@@ -119,12 +136,15 @@ namespace ClientConsole
                     Console.WriteLine("Connected");
             }).Wait();
 
-            GetStatus();
 
+            UploadFields();
+            UpDataStatus();
             Console.Write("Enter you username: ");
             SendName(Console.ReadLine());
+
             GetPlayerMove();
-            GetResult();
+            CheckGameResult();
+            ListLastGameResult();
 
             ConsoleKey key = ConsoleKey.None;
 

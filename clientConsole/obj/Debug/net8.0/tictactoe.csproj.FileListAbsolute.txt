@@ -36,3 +36,4 @@ D:\prj\tictactoe\clientConsole\bin\Debug\net8.0\Microsoft.Extensions.Logging.Abs
 D:\prj\tictactoe\clientConsole\bin\Debug\net8.0\Microsoft.Extensions.Options.dll
 D:\prj\tictactoe\clientConsole\bin\Debug\net8.0\Microsoft.Extensions.Primitives.dll
 D:\prj\tictactoe\clientConsole\bin\Debug\net8.0\System.IO.Pipelines.dll
+D:\prj\tictactoe\clientConsole\obj\Debug\net8.0\tictactoe.sourcelink.json
