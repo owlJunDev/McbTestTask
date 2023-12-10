@@ -4,7 +4,7 @@ namespace Server.Contexts
 {
     public class ApplicationContext : DbContext
     {
-        public DbSet<ResulGameList> ResulsGameList { get; set; }
+        public DbSet<ResultGameList> ResultGameLists { get; set; }
         public ApplicationContext()
         {
             Database.EnsureCreated();
@@ -12,10 +12,10 @@ namespace Server.Contexts
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             optionsBuilder.UseNpgsql("Host=localhost;" +
-                                        "Port=5432;" +
-                                        "Database=tictactoe;" +
-                                        "Username=postgres;" +
-                                        "Password=postgres");
+                                    "Port=5432;" +
+                                    "Database=tictactoe;" +
+                                    "Username=postgres;" +
+                                    "Password=postgres");
         }
     }
 }

@@ -2,16 +2,16 @@ using System.Collections.Generic;
 
 namespace Server.Services
 {
-    public class GameServic
+    public class GameService
     {
         private static String[] playerConnectId = { "", "" };
         private static bool isPlay = false;
         private static int[,] cellsVal;
 
-        public GameServic()
+        public GameService()
         {
             cellsVal = new int[3, 3];
-            setDefolatValue();
+            setDefaultValue();
         }
 
         public bool isPlayGame() { return isPlay; }
@@ -20,7 +20,7 @@ namespace Server.Services
             isPlay = isPlayGame;
         }
 
-        public void setDefolatValue()
+        public void setDefaultValue()
         {
             isPlay = false;
             playerConnectId[0] = "";
@@ -41,13 +41,11 @@ namespace Server.Services
             {
                 for (int j = 0; j < 3; j++)
                 {
-                    Console.Write(cellsVal[j, i]);
                     strFileds += cellsVal[j, i] == 0 ? "_|" :
                                     cellsVal[j, i] == 1 ? "X|" : "O|";
                 }
                 if (i < 2)
                     strFileds += "*";
-                Console.Write('\n');
             }
 
             return strFileds;

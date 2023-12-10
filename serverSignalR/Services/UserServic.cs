@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace Server.Services
 {
-    public class UsrServic
+    public class UsrService
     {
         private static readonly Dictionary<String, String> Users = new Dictionary<String, String>();
         public bool AddUserToList(String userToAdd, String idToAdd)

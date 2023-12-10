@@ -33,7 +33,7 @@ namespace ClientConsole
                     int i = 0;
                     foreach (var str in filed.Split('*'))
                     {
-                        Console.SetCursorPosition(10, 1 + i++);
+                        Console.SetCursorPosition(30, 1 + i++);
                         System.Console.Write(str);
                     }
                 });
@@ -60,9 +60,9 @@ namespace ClientConsole
                     }
                 });
         }
-        static async Task UpDataStatus()
+        static async Task UpdateStatus()
         {
-            connection.On<int, Char>("UpDataStatus", (status, character) =>
+            connection.On<int, Char>("UpdateStatus", (status, character) =>
                 {
                     gameStatus = status;
                     s = character;
@@ -128,17 +128,21 @@ namespace ClientConsole
                 .WithUrl("http://localhost:8000/game")
                 .Build();
 
+
             connection.StartAsync().ContinueWith(task =>
             {
                 if (task.IsFaulted)
+                {
                     Console.WriteLine("Connection faild");
+                    System.Environment.Exit(1);
+                }
                 else
                     Console.WriteLine("Connected");
             }).Wait();
 
 
             UploadFields();
-            UpDataStatus();
+            UpdateStatus();
             Console.Write("Enter you username: ");
             SendName(Console.ReadLine());
 
